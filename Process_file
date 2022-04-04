@@ -1,0 +1,70 @@
+##import packages -- for this instance we're using os, re, and openpyxl
+
+import os
+import openpyxl
+import re
+import emoji #for emojis in text
+import num2words
+from datetime import datetime
+
+srcfolder = r'C:\Users\Me\Directory\Desktop\Projects\Text Analytics\Proj_1\Raw' #source folder to store file
+finfolder = r'C:\Users\Me\Directory\Desktop\Projects\Text Analytics\Proj_1\Fin' #processed file folder
+
+list_dir = os.listdir(srcfolder)
+
+for xlfile in list_dir:                           # searches sourcefolder for excel files and opens the file
+    file = os.path.join(srcfolder, xlfile)    
+    if file.endswith('.xlsx') or file.endswith('.xls'):
+        wb = openpyxl.load_workbook(file, data_only=True)
+        ws = wb['Sheet1']
+    
+    for cell in ws['H:H']:                        # copies the text data column location into the next blank column 
+        ws.cell(row=cell.row, column=23, value=cell.value)
+        ws.cell(row=1, column=23).value = 'Verbatim'
+    
+    for cell in ws['W']:
+        if cell.value is not None:
+                if re.search('☺️', cell.value):
+                    cell.value = re.sub('☺️', lambda m: emoji.demojize(m.group()), cell.value) #convert smiley face up emoji
+        if cell.value is not None:
+                if re.search('👍', cell.value):
+                    cell.value = re.sub('👍', lambda m: emoji.demojize(m.group()), cell.value) #convert thumbs up emoji
+        if cell.value is not None:
+                cell.value = re.sub(r'([A-Z]+)', lambda m: m.group(0).lower(), cell.value) #lower all capital letters
+        if cell.value is not None:
+                cell.value = re.sub(r'www\S+','', cell.value) #remove www. links
+        if cell.value is not None:
+            if re.search('https+', cell.value):
+                cell.value = re.sub('http\S+','', cell.value) #removes http links
+        if cell.value is not None:
+                cell.value = re.sub('(\d+)','', cell.value) #remove all numbers
+        if cell.value is not None:
+                cell.value = re.sub('\.\.+', ' ', cell.value) #replace multiple periods with space
+        if cell.value is not None:
+                cell.value = re.sub(r',',' ', cell.value) #remove comma add space
+        if cell.value is not None:
+                cell.value = re.sub(r'([^\s\w]|_)+',' ', cell.value) #remove all characters, retain non english characters   
+        if cell.value is not None:
+            if re.search(' +', cell.value):
+                cell.value = re.sub(' +', ' ', cell.value) #remove whitespaces
+                cell.value = cell.value.strip()
+    
+ ##this section removes all formatting and converts to default:
+    from openpyxl.styles import Font, Alignment
+    no_fill = openpyxl.styles.PatternFill(fill_type=None)
+    side = openpyxl.styles.Side(border_style=None)
+    no_border = openpyxl.styles.borders.Border(left=side, right=side, top=side, bottom=side)
+    font = Font(name='Calibri', size=11, bold=False, italic=False, vertAlign=None, underline='none', strike=False, color='FF000000')
+    alignment = Alignment(horizontal='general', vertical='bottom', indent=0)
+    for row in ws:
+        for cell in row:
+            cell.fill = no_fill
+            cell.border = no_border
+            cell.font = font
+            cell.alignment = alignment
+       
+ ##save file:
+    datestring = datetime.now().strftime('%Y%m%d' + '.xlsx') 
+    finfile = (xlfile + '_Processed_' + datestring)
+    wb.save(os.path.join(finfolder, finfile))
+    wb.close()
